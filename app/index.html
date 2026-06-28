@@ -9,8 +9,8 @@
   <meta name="apple-mobile-web-app-title" content="Da El Punto"/>
   <meta name="description" content="Tanteador de padel con control Bluetooth"/>
   <title>Da El Punto</title>
-  <link rel="manifest" href="manifest.json"/>
-  <link rel="apple-touch-icon" href="icon-192.png"/>
+  <link rel="manifest" href="/manifest.json"/>
+  <link rel="apple-touch-icon" href="/icon-192.png"/>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600&display=swap" rel="stylesheet"/>
@@ -373,7 +373,7 @@ if(!window.matchMedia('(display-mode: standalone)').matches && !window.navigator
 
 // Service Worker
 if('serviceWorker' in navigator){
-  navigator.serviceWorker.register('sw.js').catch(()=>{});
+  navigator.serviceWorker.register('/sw.js').catch(()=>{});
 }
 
 function setNM(m){
