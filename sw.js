@@ -1,4 +1,4 @@
-const CACHE = 'daelpunto-v1';
+const CACHE = 'daelpunto-v3';
 const ASSETS = [
   '/',
   '/index.html',
