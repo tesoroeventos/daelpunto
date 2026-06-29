@@ -441,29 +441,42 @@ function startGame(){
       `<span class="cpill up">▲ → ${getPN(cfg.upPair)}</span>`+
       `<span class="cpill dn">▼ → ${getPN(cfg.dnPair)}</span>`;
     gameHandler=e=>{
-      const now=Date.now();if(now-lastPt<DEBOUNCE)return;
-      if(UP_KEYS.includes(e.key)){e.preventDefault();lastPt=now;addPoint(cfg.upPair);}
-      else if(DOWN_KEYS.includes(e.key)){e.preventDefault();lastPt=now;addPoint(cfg.dnPair);}
+      const now=Date.now();
+      if(UP_KEYS.includes(e.key)||DOWN_KEYS.includes(e.key)){
+        e.preventDefault();
+        e.stopPropagation();
+        if(now-lastPt<DEBOUNCE)return;
+        if(UP_KEYS.includes(e.key)){lastPt=now;addPoint(cfg.upPair);}
+        else{lastPt=now;addPoint(cfg.dnPair);}
+      }
     };
-    document.addEventListener('keydown',gameHandler);
+    document.addEventListener('keydown',gameHandler,{capture:true,passive:false});
+    document.addEventListener('keydown',blockScroll,{passive:false});
   } else {cbar.style.display='none';}
   render();
 }
 
 function goSetup(){
-  if(gameHandler){document.removeEventListener('keydown',gameHandler);gameHandler=null;}
+  if(gameHandler){document.removeEventListener('keydown',gameHandler,{capture:true});gameHandler=null;}
+  document.removeEventListener('keydown',blockScroll);
   document.getElementById('setup-screen').style.display='block';
   document.getElementById('game-screen').style.display='none';
   document.getElementById('btn-cfg').style.display='none';
 }
 function resetAll(){
-  if(gameHandler){document.removeEventListener('keydown',gameHandler);gameHandler=null;}
+  if(gameHandler){document.removeEventListener('keydown',gameHandler,{capture:true});gameHandler=null;}
+  document.removeEventListener('keydown',blockScroll);
   if(diagActive)toggleDiag();
   document.getElementById('winner-overlay').className='winner-overlay';
   document.getElementById('setup-screen').style.display='block';
   document.getElementById('game-screen').style.display='none';
   document.getElementById('btn-cfg').style.display='none';
   refreshSrv();
+}
+function blockScroll(e){
+  if(['ArrowUp','ArrowDown','PageUp','PageDown'].includes(e.key)){
+    e.preventDefault();
+  }
 }
 function initState(){
   S={pts:[0,0],games:[0,0],sets:[0,0],setHistory:[],currentSet:1,serving:cfg.firstSrv,pointsInGame:0,history:[]};
@@ -504,7 +517,8 @@ function addPoint(t){
       S.setHistory.push([g0,g1]);S.sets[swin]++;S.games=[0,0];S.currentSet++;
       if(S.sets[swin]>=2){
         render();
-        if(gameHandler){document.removeEventListener('keydown',gameHandler);gameHandler=null;}
+        if(gameHandler){document.removeEventListener('keydown',gameHandler,{capture:true});gameHandler=null;}
+  document.removeEventListener('keydown',blockScroll);
         document.getElementById('w-name').textContent=getPN(swin);
         document.getElementById('w-sub').textContent='Ganaron el partido · '+S.setHistory.map(h=>h[0]+'-'+h[1]).join(', ');
         document.getElementById('winner-overlay').className='winner-overlay show';
