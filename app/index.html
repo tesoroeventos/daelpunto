@@ -179,7 +179,14 @@
     .install-banner.show{display:flex}
     .install-txt{flex:1;font-size:11px;color:rgba(232,212,77,.8);line-height:1.5}
     .install-close{background:none;border:none;color:rgba(232,212,77,.5);font-size:16px;cursor:pointer;padding:2px 6px}
-  </style>
+  
+body.game-active {
+  overflow: hidden;
+  position: fixed;
+  width: 100%;
+  height: 100%;
+}
+</style>
 </head>
 <body>
 <div class="court-bg"></div>
@@ -432,6 +439,7 @@ function startGame(){
   initState();
   document.getElementById('setup-screen').style.display='none';
   document.getElementById('game-screen').style.display='block';
+  document.body.classList.add('game-active');
   document.getElementById('btn-cfg').style.display='block';
   document.getElementById('mb-oro-w').style.display=cfg.oro?'block':'none';
   const cbar=document.getElementById('ctrl-bar');
@@ -462,6 +470,7 @@ function goSetup(){
   document.getElementById('setup-screen').style.display='block';
   document.getElementById('game-screen').style.display='none';
   document.getElementById('btn-cfg').style.display='none';
+  document.body.classList.remove('game-active');
 }
 function resetAll(){
   if(gameHandler){document.removeEventListener('keydown',gameHandler,{capture:true});gameHandler=null;}
@@ -471,6 +480,7 @@ function resetAll(){
   document.getElementById('setup-screen').style.display='block';
   document.getElementById('game-screen').style.display='none';
   document.getElementById('btn-cfg').style.display='none';
+  document.body.classList.remove('game-active');
   refreshSrv();
 }
 function blockScroll(e){
