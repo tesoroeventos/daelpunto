@@ -285,7 +285,7 @@ body.game-active {
             <div class="diag-lbl">Código</div>
             <div class="diag-val" id="diag-code">—</div>
           </div>
-          <div class="diag-hint">Activá el diagnóstico y presioná los botones del control para confirmar qué teclas llegan en tu celu.</div>
+          <div class="diag-hint">Activá el diagnóstico y presioná los botones del control. Si el control manda scroll, vas a ver "SCROLL ↑" o "SCROLL ↓".</div>
           <button class="diag-btn" id="diag-btn" onclick="toggleDiag()">▶ Iniciar diagnóstico</button>
         </div>
       </div>
@@ -370,7 +370,7 @@ const DOWN_KEYS=['ArrowDown','PageDown'];
 
 let cfg={nm:'pairs',pairs:['Pareja 1','Pareja 2'],players:[['J1 Der','J1 Rev'],['J2 Der','J2 Rev']],oro:false,firstSrv:0,ctrlEnabled:false,upPair:0,dnPair:1};
 let S={};
-let diagActive=false,diagHandler=null,gameHandler=null,flashT=null;
+let diagActive=false,diagHandler=null,diagScrollHandler=null,gameHandler=null,gameHandlerUp=null,flashT=null;
 const DEBOUNCE=350;let lastPt=0;
 
 // PWA install hint — mostrar solo si no está instalada
@@ -413,14 +413,26 @@ function toggleDiag(){
     btn.textContent='■ Detener diagnóstico';btn.className='diag-btn on';
     diagHandler=e=>{
       const k=document.getElementById('diag-key'),c=document.getElementById('diag-code');
-      k.textContent=e.key||'(vacío)';c.textContent=e.code||'(vacío)';
+      k.textContent=(e.type==='keyup'?'↑ ':'↓ ')+(e.key||'(vacío)');
+      c.textContent=e.code||'(vacío)';
       k.className='diag-val hit';c.className='diag-val hit';
-      setTimeout(()=>{k.className='diag-val';c.className='diag-val';},300);
+      setTimeout(()=>{k.className='diag-val';c.className='diag-val';},400);
     };
     document.addEventListener('keydown',diagHandler);
+    document.addEventListener('keyup',diagHandler);
+    // También detectar scroll para controles BT
+    diagScrollHandler=()=>{
+      const k=document.getElementById('diag-key'),c=document.getElementById('diag-code');
+      const dir=window.scrollY>50?'SCROLL ↓':'SCROLL ↑';
+      k.textContent=dir;c.textContent='scroll event';
+      k.className='diag-val hit';c.className='diag-val hit';
+      setTimeout(()=>{k.className='diag-val';c.className='diag-val';},400);
+    };
+    window.addEventListener('scroll',diagScrollHandler,{passive:true});
   } else {
     btn.textContent='▶ Iniciar diagnóstico';btn.className='diag-btn';
-    if(diagHandler){document.removeEventListener('keydown',diagHandler);diagHandler=null;}
+    if(diagHandler){document.removeEventListener('keydown',diagHandler);document.removeEventListener('keyup',diagHandler);diagHandler=null;}
+    if(diagScrollHandler){window.removeEventListener('scroll',diagScrollHandler);diagScrollHandler=null;}
   }
 }
 
@@ -439,7 +451,7 @@ function startGame(){
   initState();
   document.getElementById('setup-screen').style.display='none';
   document.getElementById('game-screen').style.display='block';
-  document.body.classList.add('game-active');
+  window.scrollTo(0,100); // dar espacio para scroll arriba
   document.getElementById('btn-cfg').style.display='block';
   document.getElementById('mb-oro-w').style.display=cfg.oro?'block':'none';
   const cbar=document.getElementById('ctrl-bar');
@@ -448,39 +460,55 @@ function startGame(){
     document.getElementById('ctrl-pills').innerHTML=
       `<span class="cpill up">▲ → ${getPN(cfg.upPair)}</span>`+
       `<span class="cpill dn">▼ → ${getPN(cfg.dnPair)}</span>`;
+    // Escuchar scroll — el control BT manda eventos de scroll nativos
+    let lastScrollY = window.scrollY;
     gameHandler=e=>{
       const now=Date.now();
-      if(UP_KEYS.includes(e.key)||DOWN_KEYS.includes(e.key)){
-        e.preventDefault();
-        e.stopPropagation();
-        if(now-lastPt<DEBOUNCE)return;
-        if(UP_KEYS.includes(e.key)){lastPt=now;addPoint(cfg.upPair);}
-        else{lastPt=now;addPoint(cfg.dnPair);}
+      if(now-lastPt<DEBOUNCE) return;
+      const currentY = window.scrollY;
+      const delta = currentY - lastScrollY;
+      lastScrollY = currentY;
+      if(Math.abs(delta) < 2) return; // ignorar micro-movimientos
+      lastPt=now;
+      if(delta < 0) addPoint(cfg.upPair);   // scroll arriba → pareja 1
+      else addPoint(cfg.dnPair);              // scroll abajo → pareja 2
+      // Volver al top para que siempre haya espacio para scrollear
+      window.scrollTo(0,0);
+      lastScrollY = 0;
+    };
+    // También seguir escuchando keys por si acaso
+    gameHandlerUp=e=>{
+      const now=Date.now();
+      if(now-lastPt<DEBOUNCE) return;
+      if(UP_KEYS.includes(e.key)||UP_KEYS.includes(e.code)){
+        e.preventDefault();lastPt=now;addPoint(cfg.upPair);
+      } else if(DOWN_KEYS.includes(e.key)||DOWN_KEYS.includes(e.code)){
+        e.preventDefault();lastPt=now;addPoint(cfg.dnPair);
       }
     };
-    document.addEventListener('keydown',gameHandler,{capture:true,passive:false});
-    document.addEventListener('keydown',blockScroll,{passive:false});
+    document.addEventListener('keydown',gameHandlerUp,{capture:true,passive:false});
+    window.addEventListener('scroll',gameHandler,{passive:true});
   } else {cbar.style.display='none';}
   render();
 }
 
 function goSetup(){
-  if(gameHandler){document.removeEventListener('keydown',gameHandler,{capture:true});gameHandler=null;}
-  document.removeEventListener('keydown',blockScroll);
+  if(gameHandler){window.removeEventListener('scroll',gameHandler);gameHandler=null;}
+  if(gameHandlerUp){document.removeEventListener('keydown',gameHandlerUp,{capture:true});gameHandlerUp=null;}
   document.getElementById('setup-screen').style.display='block';
   document.getElementById('game-screen').style.display='none';
   document.getElementById('btn-cfg').style.display='none';
-  document.body.classList.remove('game-active');
+  window.scrollTo(0,0);
 }
 function resetAll(){
-  if(gameHandler){document.removeEventListener('keydown',gameHandler,{capture:true});gameHandler=null;}
-  document.removeEventListener('keydown',blockScroll);
+  if(gameHandler){window.removeEventListener('scroll',gameHandler);gameHandler=null;}
+  if(gameHandlerUp){document.removeEventListener('keydown',gameHandlerUp,{capture:true});gameHandlerUp=null;}
   if(diagActive)toggleDiag();
   document.getElementById('winner-overlay').className='winner-overlay';
   document.getElementById('setup-screen').style.display='block';
   document.getElementById('game-screen').style.display='none';
   document.getElementById('btn-cfg').style.display='none';
-  document.body.classList.remove('game-active');
+  window.scrollTo(0,0);
   refreshSrv();
 }
 function blockScroll(e){
@@ -509,6 +537,7 @@ function showFlash(t){
 }
 function addPoint(t){
   S.history.push(JSON.parse(JSON.stringify(S)));
+  if(S.history.length>20) S.history.shift(); // máximo 20 estados
   showFlash(t);
   const wasOro=isOro();S.pts[t]++;S.pointsInGame++;
   const p0=S.pts[0],p1=S.pts[1];let gw=false,gwin=-1;
@@ -527,8 +556,8 @@ function addPoint(t){
       S.setHistory.push([g0,g1]);S.sets[swin]++;S.games=[0,0];S.currentSet++;
       if(S.sets[swin]>=2){
         render();
-        if(gameHandler){document.removeEventListener('keydown',gameHandler,{capture:true});gameHandler=null;}
-  document.removeEventListener('keydown',blockScroll);
+        if(gameHandler){window.removeEventListener('scroll',gameHandler);gameHandler=null;}
+  if(gameHandlerUp){document.removeEventListener('keydown',gameHandlerUp,{capture:true});gameHandlerUp=null;}
         document.getElementById('w-name').textContent=getPN(swin);
         document.getElementById('w-sub').textContent='Ganaron el partido · '+S.setHistory.map(h=>h[0]+'-'+h[1]).join(', ');
         document.getElementById('winner-overlay').className='winner-overlay show';
